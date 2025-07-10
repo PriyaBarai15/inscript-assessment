@@ -1,33 +1,39 @@
 import React from "react";
-import { flexRender, Table } from "@tanstack/react-table";
+import { Table } from "@tanstack/react-table";
 import {
   ChevronUp,
   ChevronDown,
   Plus,
   MoreHorizontal,
   ArrowDownFromLine,
+  Briefcase,
+  Calendar,
+  CircleDot,
+  User,
+  Link,
+  UserCheck,
+  AlertTriangle,
+  Clock,
+  DollarSign,
 } from "lucide-react";
 import { JobRequest } from "../../types";
 import {
   getColumnGroups,
   getColumnHeaderBg,
   CustomColumnDefinition,
+  getIconComponent,
 } from "./ColumnHelper";
 import { ColumnGroup } from "./AddColumnModal";
 import EditableHeader from "./EditableHeader";
-import ColumnGroupDropdown from "./ColumnGroupDropdown";
 
 interface TableHeaderProps {
   table: Table<JobRequest>;
   onAddNewColumn: () => void;
   getGroupWidth: (groupColumns: string[]) => number;
   isGroupResizing: (groupColumns: string[]) => boolean;
-  extraColumnsCount: number;
   columnGroups: ColumnGroup[];
   customColumns: CustomColumnDefinition[];
   onColumnNameChange: (columnId: string, newName: string) => void;
-  onColumnGroupChange: (columnId: string, groupId: string) => void;
-  onCreateGroup: (groupName: string) => void;
 }
 
 const TableHeader: React.FC<TableHeaderProps> = ({
@@ -35,12 +41,9 @@ const TableHeader: React.FC<TableHeaderProps> = ({
   onAddNewColumn,
   getGroupWidth,
   isGroupResizing,
-  extraColumnsCount,
   columnGroups,
   customColumns,
   onColumnNameChange,
-  onColumnGroupChange,
-  onCreateGroup,
 }) => {
   const columnGroupsConfig = getColumnGroups(columnGroups, customColumns);
   return (
@@ -85,7 +88,7 @@ const TableHeader: React.FC<TableHeaderProps> = ({
             <button className="ml-auto p-1 hover:bg-blue-100 rounded">
               <MoreHorizontal className="w-4 h-4 text-gray-500" />
             </button>
-          </div>
+          </div>{" "}
         </th>
         {/* Extra columns group */}
         <th
@@ -187,22 +190,6 @@ const TableHeader: React.FC<TableHeaderProps> = ({
           </div>
         </th>
 
-        {/* Dynamic Extra Columns group */}
-        {extraColumnsCount > 0 && (
-          <th
-            colSpan={extraColumnsCount}
-            className="px-4 py-1 text-center text-sm font-medium border-r border-gray-200 bg-[#F0F0F0]"
-            style={{
-              width: extraColumnsCount * 128, // Each extra column is 128px
-              minWidth: extraColumnsCount * 128,
-            }}
-          >
-            <div className="flex items-center gap-2 justify-center">
-              <span className="text-gray-800 font-medium">Extra Columns</span>
-            </div>
-          </th>
-        )}
-
         {/* Add column button header */}
         <th
           rowSpan={2}
@@ -235,17 +222,35 @@ const TableHeader: React.FC<TableHeaderProps> = ({
 
             // Find custom column config if exists
             const customCol = customColumns.find((col) => col.id === header.id);
-            const groupId = customCol?.groupId || Object.keys(columnGroupsConfig).find((groupKey) =>
-              columnGroupsConfig[groupKey].columns.includes(header.id)
-            );
 
             // Ensure EditableHeader value is a string
             let headerValue: string = "";
+            let IconComponent = null;
+
             if (customCol?.name) {
               headerValue = customCol.name;
+              IconComponent = getIconComponent(customCol.icon);
             } else {
-              const rendered = flexRender(header.column.columnDef.header, header.getContext());
-              headerValue = typeof rendered === "string" ? rendered : (rendered?.toString?.() || "");
+              // Map default column IDs to their display names and icons
+              const defaultColumnConfig: {
+                [key: string]: {
+                  name: string;
+                  icon: React.ComponentType<{ className?: string }>;
+                };
+              } = {
+                jobRequest: { name: "Job Request", icon: Briefcase },
+                submitted: { name: "Submitted", icon: Calendar },
+                status: { name: "Status", icon: CircleDot },
+                submitter: { name: "Submitter", icon: User },
+                url: { name: "URL", icon: Link },
+                assigned: { name: "Assigned", icon: UserCheck },
+                priority: { name: "Priority", icon: AlertTriangle },
+                dueDate: { name: "Due Date", icon: Clock },
+                estValue: { name: "Est. Value", icon: DollarSign },
+              };
+              const config = defaultColumnConfig[header.id];
+              headerValue = config?.name || header.id;
+              IconComponent = config?.icon;
             }
 
             return (
@@ -267,22 +272,20 @@ const TableHeader: React.FC<TableHeaderProps> = ({
                     }`}
                     onClick={header.column.getToggleSortingHandler()}
                   >
-                    {/* Editable column name */}
-                    <EditableHeader
-                      value={headerValue}
-                      onSave={(newName) => onColumnNameChange(header.id, newName)}
-                      className="truncate"
-                    />
-                    {/* Group dropdown for custom columns */}
-                    {customCol && (
-                      <ColumnGroupDropdown
-                        currentGroupId={groupId || ''}
-                        groups={columnGroups}
-                        onGroupChange={(newGroupId) => onColumnGroupChange(header.id, newGroupId)}
-                        onCreateGroup={onCreateGroup}
-                        triggerClassName="ml-1"
+                    {/* Icon and editable column name */}
+                    <div className="flex items-center space-x-2">
+                      {IconComponent && (
+                        <IconComponent className="w-4 h-4 text-gray-500" />
+                      )}
+                      <EditableHeader
+                        value={headerValue}
+                        onSave={(newName) =>
+                          onColumnNameChange(header.id, newName)
+                        }
+                        className="truncate"
                       />
-                    )}
+                    </div>
+
                     {header.column.getCanSort() && (
                       <span className="flex flex-col">
                         {header.column.getIsSorted() === "asc" ? (

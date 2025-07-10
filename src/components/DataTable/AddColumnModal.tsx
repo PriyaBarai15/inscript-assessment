@@ -1,12 +1,11 @@
 import React, { useState } from "react";
 import { X, Plus } from "lucide-react";
+import { AVAILABLE_ICONS } from "./ColumnHelper";
 
 interface AddColumnModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onAddColumn: (columnConfig: NewColumnConfig) => void;
-  availableGroups: ColumnGroup[];
-  onCreateGroup: (groupName: string) => void;
+  onAddColumns: (groupConfig: NewGroupConfig) => void;
 }
 
 export interface ColumnGroup {
@@ -17,54 +16,64 @@ export interface ColumnGroup {
 
 export interface NewColumnConfig {
   name: string;
-  groupId: string;
   type: "text" | "status" | "priority" | "date" | "number";
+  icon?: string;
+}
+
+export interface NewGroupConfig {
+  groupName: string;
+  columns: NewColumnConfig[];
 }
 
 const AddColumnModal: React.FC<AddColumnModalProps> = ({
   isOpen,
   onClose,
-  onAddColumn,
-  availableGroups,
-  onCreateGroup,
+  onAddColumns,
 }) => {
-  const [columnName, setColumnName] = useState("");
-  const [selectedGroup, setSelectedGroup] = useState("");
-  const [columnType, setColumnType] = useState<NewColumnConfig["type"]>("text");
-  const [newGroupName, setNewGroupName] = useState("");
-  const [isCreatingGroup, setIsCreatingGroup] = useState(false);
+  const [groupName, setGroupName] = useState("");
+  const [columns, setColumns] = useState<NewColumnConfig[]>([
+    { name: "", type: "text", icon: "" },
+  ]);
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (columnName.trim()) {
-      onAddColumn({
-        name: columnName.trim(),
-        groupId: selectedGroup || "extra",
-        type: columnType,
-      });
-      setColumnName("");
-      setSelectedGroup("");
-      setColumnType("text");
-      onClose();
+  const addColumn = () => {
+    setColumns((prev) => [...prev, { name: "", type: "text", icon: "" }]);
+  };
+
+  const removeColumn = (index: number) => {
+    if (columns.length > 1) {
+      setColumns((prev) => prev.filter((_, i) => i !== index));
     }
   };
 
-  const handleCreateGroup = (e: React.FormEvent) => {
+  const updateColumn = (
+    index: number,
+    field: keyof NewColumnConfig,
+    value: string
+  ) => {
+    setColumns((prev) =>
+      prev.map((col, i) => (i === index ? { ...col, [field]: value } : col))
+    );
+  };
+
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (newGroupName.trim()) {
-      onCreateGroup(newGroupName.trim());
-      setSelectedGroup(newGroupName.trim().toLowerCase().replace(/\s+/g, "-"));
-      setNewGroupName("");
-      setIsCreatingGroup(false);
+    const validColumns = columns.filter((col) => col.name.trim());
+    if (groupName.trim() && validColumns.length > 0) {
+      onAddColumns({
+        groupName: groupName.trim(),
+        columns: validColumns.map((col) => ({
+          ...col,
+          name: col.name.trim(),
+          icon: col.icon || undefined,
+        })),
+      });
+      handleCancel();
     }
   };
 
   const handleCancel = () => {
-    setColumnName("");
-    setSelectedGroup("");
-    setColumnType("text");
-    setNewGroupName("");
-    setIsCreatingGroup(false);
+    setGroupName("");
+    setColumns([{ name: "", type: "text", icon: "" }]);
     onClose();
   };
 
@@ -75,7 +84,7 @@ const AddColumnModal: React.FC<AddColumnModalProps> = ({
       <div className="bg-white rounded-lg shadow-xl w-96 max-h-[80vh] overflow-auto">
         <div className="flex items-center justify-between p-4 border-b">
           <h2 className="text-lg font-semibold text-gray-900">
-            Add New Column
+            Add New Column Group
           </h2>
           <button
             onClick={handleCancel}
@@ -86,111 +95,111 @@ const AddColumnModal: React.FC<AddColumnModalProps> = ({
         </div>
 
         <form onSubmit={handleSubmit} className="p-4 space-y-4">
-          {/* Column Name */}
+          {/* Group Name */}
           <div>
             <label
-              htmlFor="columnName"
+              htmlFor="groupName"
               className="block text-sm font-medium text-gray-700 mb-1"
             >
-              Column Name *
+              Column Group Name *
             </label>
             <input
-              id="columnName"
+              id="groupName"
               type="text"
-              value={columnName}
-              onChange={(e) => setColumnName(e.target.value)}
+              value={groupName}
+              onChange={(e) => setGroupName(e.target.value)}
               className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              placeholder="Enter column name..."
+              placeholder="Enter group name..."
               required
               autoFocus
             />
           </div>
 
-          {/* Column Type */}
+          {/* Columns */}
           <div>
-            <label
-              htmlFor="columnType"
-              className="block text-sm font-medium text-gray-700 mb-1"
-            >
-              Column Type
-            </label>
-            <select
-              id="columnType"
-              value={columnType}
-              onChange={(e) =>
-                setColumnType(e.target.value as NewColumnConfig["type"])
-              }
-              className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-            >
-              <option value="text">Text</option>
-              <option value="status">Status</option>
-              <option value="priority">Priority</option>
-              <option value="date">Date</option>
-              <option value="number">Number</option>
-            </select>
-          </div>
+            <div className="flex items-center justify-between mb-2">
+              <label className="block text-sm font-medium text-gray-700">
+                Columns *
+              </label>
+              <button
+                type="button"
+                onClick={addColumn}
+                className="text-sm text-blue-600 hover:text-blue-700 flex items-center space-x-1"
+              >
+                <Plus className="w-4 h-4" />
+                <span>Add Column</span>
+              </button>
+            </div>
 
-          {/* Column Group */}
-          <div>
-            <label
-              htmlFor="columnGroup"
-              className="block text-sm font-medium text-gray-700 mb-1"
-            >
-              Column Group (Optional)
-            </label>
-            {!isCreatingGroup ? (
-              <div className="flex space-x-2">
-                <select
-                  id="columnGroup"
-                  value={selectedGroup}
-                  onChange={(e) => setSelectedGroup(e.target.value)}
-                  className="flex-1 border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            <div className="space-y-3 max-h-64 overflow-y-auto">
+              {columns.map((column, index) => (
+                <div
+                  key={index}
+                  className="border border-gray-200 rounded-md p-3 space-y-3"
                 >
-                  <option value="">Default (Extra Columns)</option>
-                  {availableGroups.map((group) => (
-                    <option key={group.id} value={group.id}>
-                      {group.name}
-                    </option>
-                  ))}
-                </select>
-                <button
-                  type="button"
-                  onClick={() => setIsCreatingGroup(true)}
-                  className="px-3 py-2 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-md transition-colors flex items-center space-x-1"
-                  title="Create new group"
-                >
-                  <Plus className="w-4 h-4" />
-                  <span>New</span>
-                </button>
-              </div>
-            ) : (
-              <form onSubmit={handleCreateGroup} className="flex space-x-2">
-                <input
-                  type="text"
-                  value={newGroupName}
-                  onChange={(e) => setNewGroupName(e.target.value)}
-                  placeholder="Enter group name..."
-                  className="flex-1 border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  autoFocus
-                />
-                <button
-                  type="submit"
-                  className="px-3 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-md transition-colors"
-                >
-                  <Plus className="w-4 h-4" />
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setIsCreatingGroup(false);
-                    setNewGroupName("");
-                  }}
-                  className="px-3 py-2 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-md transition-colors"
-                >
-                  <X className="w-4 h-4" />
-                </button>
-              </form>
-            )}
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-medium text-gray-700">
+                      Column {index + 1}
+                    </span>
+                    {columns.length > 1 && (
+                      <button
+                        type="button"
+                        onClick={() => removeColumn(index)}
+                        className="text-red-500 hover:text-red-700 text-sm"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Column Name */}
+                  <div>
+                    <input
+                      type="text"
+                      value={column.name}
+                      onChange={(e) =>
+                        updateColumn(index, "name", e.target.value)
+                      }
+                      className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      placeholder="Column name..."
+                      required
+                    />
+                  </div>
+
+                  {/* Column Type and Icon */}
+                  <div className="grid grid-cols-2 gap-2">
+                    <select
+                      value={column.type}
+                      onChange={(e) =>
+                        updateColumn(index, "type", e.target.value)
+                      }
+                      className="border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    >
+                      <option value="text">Text</option>
+                      <option value="status">Status</option>
+                      <option value="priority">Priority</option>
+                      <option value="date">Date</option>
+                      <option value="number">Number</option>
+                    </select>
+
+                    <select
+                      value={column.icon || ""}
+                      onChange={(e) =>
+                        updateColumn(index, "icon", e.target.value)
+                      }
+                      className="border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    >
+                      <option value="">No Icon</option>
+                      {AVAILABLE_ICONS.map((iconConfig) => (
+                        <option key={iconConfig.name} value={iconConfig.name}>
+                          {iconConfig.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
 
           {/* Action Buttons */}
@@ -207,7 +216,7 @@ const AddColumnModal: React.FC<AddColumnModalProps> = ({
               className="px-4 py-2 text-sm font-medium text-white bg-[#4B6A4F] hover:bg-opacity-80 rounded-md transition-colors flex items-center space-x-2"
             >
               <Plus className="w-4 h-4" />
-              <span>Add Column</span>
+              <span>Add Group</span>
             </button>
           </div>
         </form>

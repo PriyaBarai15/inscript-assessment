@@ -9,7 +9,6 @@ import {
 } from "@tanstack/react-table";
 import { JobRequest } from "../../types";
 import {
-  generateExtraColumns,
   createBaseColumns,
   ColumnConfig,
   generateCustomColumns,
@@ -21,7 +20,7 @@ import { createColumnHelper } from "@tanstack/react-table";
 const columnHelper = createColumnHelper<JobRequest>();
 import TableHeader from "./TableHeader";
 import TableBody from "./TableBody";
-import AddColumnModal, { NewColumnConfig, ColumnGroup } from "./AddColumnModal";
+import AddColumnModal, { NewGroupConfig, ColumnGroup } from "./AddColumnModal";
 
 interface DataTableProps {
   data: JobRequest[];
@@ -59,41 +58,14 @@ const DataTable: React.FC<DataTableProps> = ({
   const [customColumnCounter, setCustomColumnCounter] = React.useState(0);
   const tableContainerRef = React.useRef<HTMLDivElement>(null);
 
-  // Calculate dynamic extra columns based on gridData
-  const getMaxExtraColumns = () => {
-    let maxCol = 10; // Start from the last fixed column (10 = Extract column index)
-    Object.keys(gridData).forEach((key) => {
-      const [, colStr] = key.split("-");
-      const col = parseInt(colStr, 10);
-      if (col >= 11) {
-        // Only extra columns (beyond the 11 fixed columns)
-        maxCol = Math.max(maxCol, col);
-      }
-    });
-    // Always show at least 1 extra column for expansion, or the max used column + 1
-    const extraColumnsNeeded = Math.max(0, maxCol - 10);
-    return Math.max(1, extraColumnsNeeded);
-  };
-
   // Function to add a new column
   const addNewColumn = () => {
     setIsAddColumnModalOpen(true);
   };
 
-  // Handle adding a new column from modal
-  const handleAddColumn = (columnConfig: NewColumnConfig) => {
-    const newColumn: CustomColumnDefinition = {
-      id: `custom-${customColumnCounter}`,
-      name: columnConfig.name,
-      groupId: columnConfig.groupId,
-      type: columnConfig.type,
-    };
-    setCustomColumns((prev) => [...prev, newColumn]);
-    setCustomColumnCounter((prev) => prev + 1);
-  };
-
-  // Handle creating a new group
-  const handleCreateGroup = (groupName: string) => {
+  // Handle adding a new column group from modal
+  const handleAddColumns = (groupConfig: NewGroupConfig) => {
+    // Create the new group
     const colors = [
       "#FFE5E5",
       "#E5F3FF",
@@ -102,13 +74,28 @@ const DataTable: React.FC<DataTableProps> = ({
       "#F0E5FF",
       "#E5FFF5",
     ];
-    const groupId = groupName.toLowerCase().replace(/\s+/g, "-");
+    const groupId = groupConfig.groupName.toLowerCase().replace(/\s+/g, "-");
     const newGroup: ColumnGroup = {
       id: groupId,
-      name: groupName,
+      name: groupConfig.groupName,
       color: colors[columnGroups.length % colors.length],
     };
+
+    // Create the columns for this group
+    const newColumns: CustomColumnDefinition[] = groupConfig.columns.map(
+      (columnConfig, index) => ({
+        id: `custom-${customColumnCounter + index}`,
+        name: columnConfig.name,
+        groupId: groupId,
+        type: columnConfig.type,
+        icon: columnConfig.icon,
+      })
+    );
+
+    // Update state
     setColumnGroups((prev) => [...prev, newGroup]);
+    setCustomColumns((prev) => [...prev, ...newColumns]);
+    setCustomColumnCounter((prev) => prev + groupConfig.columns.length);
   };
 
   // Handle column name changes
@@ -258,7 +245,6 @@ const DataTable: React.FC<DataTableProps> = ({
     columnGroups,
     onColumnNameChange: handleColumnNameChange,
     onColumnGroupChange: handleColumnGroupChange,
-    onCreateGroup: handleCreateGroup,
   };
 
   // Create base columns using the helper
@@ -266,10 +252,6 @@ const DataTable: React.FC<DataTableProps> = ({
 
   // Generate custom columns
   const customColumnComponents = generateCustomColumns(columnConfig);
-
-  // Combine base columns with dynamic extra columns and add column button
-  const extraColumnsCount = getMaxExtraColumns();
-  const extraColumns = generateExtraColumns(extraColumnsCount, columnConfig);
 
   // Add the "Add Column" button as the last column
   const addColumnButton = columnHelper.display({
@@ -283,7 +265,6 @@ const DataTable: React.FC<DataTableProps> = ({
   const allColumns = [
     ...baseColumns,
     ...customColumnComponents,
-    ...extraColumns,
     addColumnButton,
   ];
 
@@ -390,12 +371,9 @@ const DataTable: React.FC<DataTableProps> = ({
             onAddNewColumn={addNewColumn}
             getGroupWidth={getGroupWidth}
             isGroupResizing={isGroupResizing}
-            extraColumnsCount={extraColumnsCount}
             columnGroups={columnGroups}
             customColumns={customColumns}
             onColumnNameChange={handleColumnNameChange}
-            onColumnGroupChange={handleColumnGroupChange}
-            onCreateGroup={handleCreateGroup}
           />
           <TableBody
             table={table}
@@ -410,9 +388,7 @@ const DataTable: React.FC<DataTableProps> = ({
       <AddColumnModal
         isOpen={isAddColumnModalOpen}
         onClose={() => setIsAddColumnModalOpen(false)}
-        onAddColumn={handleAddColumn}
-        availableGroups={columnGroups}
-        onCreateGroup={handleCreateGroup}
+        onAddColumns={handleAddColumns}
       />
     </div>
   );

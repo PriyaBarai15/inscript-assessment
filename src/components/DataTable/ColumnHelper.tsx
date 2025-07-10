@@ -8,6 +8,20 @@ import {
   AlertTriangle,
   Clock,
   DollarSign,
+  // Additional icons for custom columns
+  Home,
+  Mail,
+  Phone,
+  MapPin,
+  Star,
+  Heart,
+  Settings,
+  Search,
+  Edit,
+  File,
+  Folder,
+  Image,
+  Tag,
 } from "lucide-react";
 import { createColumnHelper } from "@tanstack/react-table";
 import { JobRequest } from "../../types";
@@ -33,7 +47,6 @@ export interface ColumnConfig {
   columnGroups?: ColumnGroup[];
   onColumnNameChange?: (columnId: string, newName: string) => void;
   onColumnGroupChange?: (columnId: string, groupId: string) => void;
-  onCreateGroup?: (groupName: string) => void;
 }
 
 export interface CustomColumnDefinition {
@@ -41,6 +54,7 @@ export interface CustomColumnDefinition {
   name: string;
   groupId: string;
   type: "text" | "status" | "priority" | "date" | "number";
+  icon?: string;
 }
 
 // Function to generate column letters like Excel (A, B, C, ..., Z, AA, AB, etc.)
@@ -167,10 +181,13 @@ export const generateCustomColumns = (config: ColumnConfig) => {
   if (!config.customColumns) return [];
 
   return config.customColumns.map((columnDef) => {
+    const IconComponent = getIconComponent(columnDef.icon);
+
     return columnHelper.display({
       id: columnDef.id,
       header: () => (
-        <div className="flex items-center justify-center min-w-[100px]">
+        <div className="flex items-center justify-center min-w-[100px] space-x-2">
+          {IconComponent && <IconComponent className="w-4 h-4 text-gray-500" />}
           <span className="font-medium text-gray-600">{columnDef.name}</span>
         </div>
       ),
@@ -193,8 +210,9 @@ export const generateCustomColumns = (config: ColumnConfig) => {
 // Generate extra columns dynamically (for backward compatibility)
 export const generateExtraColumns = (count: number, config: ColumnConfig) => {
   const extraCols = [];
-  for (let i = 0; i < count; i++) {
-    const columnLetter = getColumnLetter(i + 11); // Start after the fixed 11 columns (9 main + 2 fixed)
+  for (let i = 1; i < count + 1; i++) {
+    // Start from 1 instead of 0
+    const columnLetter = getColumnLetter(i + 10); // Adjust to start from the correct column position
     extraCols.push(
       columnHelper.display({
         id: `extra-${i}`,
@@ -207,7 +225,7 @@ export const generateExtraColumns = (count: number, config: ColumnConfig) => {
           <EditableCell
             isEmptyCell={true}
             row={row.index}
-            col={i + 11} // Start from column 11
+            col={i + 10} // Adjust column index accordingly
             gridData={config.gridData}
             onUpdateGridData={config.onUpdateGridData}
           />
@@ -452,3 +470,34 @@ export const createBaseColumns = (config: ColumnConfig) => [
     maxSize: 200,
   }),
 ];
+
+// Available icons for custom columns (20 options)
+export const AVAILABLE_ICONS = [
+  { name: "briefcase", component: Briefcase, label: "Briefcase" },
+  { name: "calendar", component: Calendar, label: "Calendar" },
+  { name: "user", component: User, label: "User" },
+  { name: "mail", component: Mail, label: "Mail" },
+  { name: "phone", component: Phone, label: "Phone" },
+  { name: "home", component: Home, label: "Home" },
+  { name: "star", component: Star, label: "Star" },
+  { name: "heart", component: Heart, label: "Heart" },
+  { name: "settings", component: Settings, label: "Settings" },
+  { name: "search", component: Search, label: "Search" },
+  { name: "edit", component: Edit, label: "Edit" },
+  { name: "file", component: File, label: "File" },
+  { name: "folder", component: Folder, label: "Folder" },
+  { name: "image", component: Image, label: "Image" },
+  { name: "tag", component: Tag, label: "Tag" },
+  { name: "link", component: Link, label: "Link" },
+  { name: "clock", component: Clock, label: "Clock" },
+  { name: "alert-triangle", component: AlertTriangle, label: "Alert" },
+  { name: "dollar-sign", component: DollarSign, label: "Money" },
+  { name: "map-pin", component: MapPin, label: "Location" },
+];
+
+// Get icon component by name
+export const getIconComponent = (iconName?: string) => {
+  if (!iconName) return null;
+  const iconConfig = AVAILABLE_ICONS.find((icon) => icon.name === iconName);
+  return iconConfig ? iconConfig.component : null;
+};
